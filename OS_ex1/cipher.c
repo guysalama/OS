@@ -9,13 +9,21 @@
 #include <errno.h>
 #include <linux/limits.h>
 
-#define OPENDIR_ERROR "Error occurred while opening a directory: %s\n"
-#define MKDIR_ERROR "Error occurred while creating a directory: %s\n"
-#define OPEN_ERROR "Error occurred while openning a file: %s\n"
+#define OPENDIR_ERROR "Error occurred while opening directory: %s\n"
+#define MKDIR_ERROR "Error occurred while creating directory: %s\n"
+#define OPEN_ERROR "Error occurred while openning file: %s\n"
 #define STAT_ERROR "Error occurred while getting file stat: %s\n"
 #define CRYP_ERROR "Error occurred while encrypting or decrypting a file: %s\n"
-#define CLOSE_ERROR "Error occurred while closing a file: %s\n"
-#define CLOSEDIR_ERROR "Error occurred while closing a directory: %s\n"
+#define CLOSE_ERROR "Error occurred while closing file: %s\n"
+#define CLOSEDIR_ERROR "Error occurred while closing directory: %s\n"
+#define READ_ERROR "Error occurred while reading from file: %s\n"
+#define WRITE_ERROR "Error occurred while writing to file: %s\n"
+#define BUF_SIZE 4000
+
+//Declarations
+int cryp_func(int cryp, int key, int res);
+int error(char* msg);
+int cryp_error(char* msg);
 
 int main(int argc, char** argv){
 	int key, cryp, res;
@@ -58,50 +66,44 @@ int main(int argc, char** argv){
 	if (closedir(cryp) == -1) return error(CLOSEDIR_ERROR);
 }
 
+int cryp_func(int cryp, int key, int res){
+	int key_cnt, cryp_cnt, idx, i;
+	char key_buf[BUF_SIZE + 1], cryp_buf[BUF_SIZE + 1], res_buf[BUF_SIZE + 1]; // read first 4000 characters
+	key_buf[BUF_SIZE] = '\0'; // string closer
+	cryp_buf[BUF_SIZE] = '\0';
+	res_buf[BUF_SIZE] = '\0';
+	do{
+		key_cnt = read(key, key_buf, 4000);
+		if (key_cnt == -1) return cryp_error(READ_ERROR);
+		if (key_cnt != BUF_SIZE) key_buf[key_cnt] = '\0';
+		idx = strlen(key_buf);
+		while (idx < BUF_SIZE){
+			lseek(key, 0, SEEK_SET);
+			key_cnt = read(key, &key_buf[idx], BUF_SIZE - idx);
+			if (key_cnt == -1) return cryp_error(READ_ERROR);
+			idx += key_cnt;
+			if (idx < BUF_SIZE) key_buf[idx] = '\0';
+		}
+
+		cryp_cnt = read(cryp, cryp_buf, BUF_SIZE);
+		if (cryp_cnt == -1) return cryp_error(READ_ERROR);
+		if (cryp_cnt < BUF_SIZE){
+			cryp_buf[cryp_cnt] = EOF;
+			res_buf[cryp_cnt] = EOF;
+		}
+
+		for (i = 0; i < cryp_cnt; i++) res_buf[i] = key_buf[i] ^ cryp_buf[i];
+		if (write(res, res_buf, cryp_cnt) == -1) return cryp_error(WRITE_ERROR);
+	} while (cryp_cnt = BUF_SIZE);
+	return 0;
+}
+
 int error(char* msg){
 	printf(msg, strerror(errno));
 	return errno;
 }
 
-int enc_dec(int src, int key, int res){
-	int key_byte, file_byte = 4000, i, tmp;
-	char key_buf[4001], file_buf[4001], res_buf[4001];
-	key_buf[4000] = '\0';
-	file_buf[4000] = '\0';
-	res_buf[4000] = '\0';
-	while (file_byte == 4000){
-		if ((key_byte = read(key, key_buf, 4000)) == -1){
-			printf("Error reading from key file: %s\n", strerror(errno));
-			return 0;
-		}
-		if (key_byte != 4000) key_buf[key_byte] = '\0';
-		tmp = strlen(key_buf);
-		while (tmp < 4000){
-			lseek(key, 0, SEEK_SET);
-			if ((key_byte = read(key, &key_buf[tmp], 4000 - tmp)) == -1){
-				printf("Error reading from key file: %s\n", strerror(errno));
-				return 0;
-			}
-			tmp += key_byte;
-			if (tmp != 4000) key_buf[tmp] = '\0';
-		}
-
-		if ((file_byte = read(src, file_buf, 4000)) == -1){
-			printf("Error reading from file: %s\n", strerror(errno));
-			return 0;
-		}
-		if (file_byte != 4000){
-			file_buf[file_byte] = EOF;
-			res_buf[file_byte] = EOF;
-		}
-
-		for (i = 0; i < file_byte; i++)
-			res_buf[i] = key_buf[i] ^ file_buf[i];
-
-		if (write(res, res_buf, file_byte) == -1){
-			printf("Error writing to file: %s\n", strerror(errno));
-			return 0;
-		}
-	}
-	return 1;
+int cryp_error(char* msg){
+	printf(msg, strerror(errno));
+	return -1;
 }
