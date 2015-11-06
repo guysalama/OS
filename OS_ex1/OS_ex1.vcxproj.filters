@@ -21,6 +21,9 @@
     <ClCompile Include="liad.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="cipher.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="script.sh">

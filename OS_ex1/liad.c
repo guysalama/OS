@@ -64,12 +64,12 @@ int main(int argc, char** argv){
 		return errno;
 	}
 	if (dst_dir == NULL){
-		if (mkdir(argv[3], 0777) != 0){
+		if (mkdir(argv[3], 0777) != 0){ //ask??
 			printf("Error making folder: %s\n", strerror(errno));
 			return errno;
 		}
 	}
-	else if (closedir(dst_dir) != 0){
+	else if (closedir(dst_dir) != 0){ //ask liad??
 		printf("Error closing directory: %s\n", strerror(errno));
 		return errno;
 	}
