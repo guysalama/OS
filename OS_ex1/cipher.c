@@ -31,6 +31,7 @@ int main(int argc, char** argv){
 	struct stat statbuf;
 
 	assert(argc == 4);
+	struct dirent* dp;
 	DIR *cryp_dir = opendir(argv[1]);
 	if (cryp_dir == NULL) return error(OPENDIR_ERROR);
 	if (mkdir(argv[3], S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0){
@@ -41,7 +42,7 @@ int main(int argc, char** argv){
 	key = open(argv[2], O_RDONLY);
 	if (key == -1) return error(OPEN_ERROR);
 	char cryp_path[PATH_MAX], res_path[PATH_MAX];
-	dp = (struct dirent*) readdir(cryp);
+	dp = readdir(cryp);
 	while (dp != NULL){
 		sprintf(cryp_path, "%s/%s", argv[1], dp->d_name); // get full path to the encrypted/decrypted file
 		sprintf(res_path, "%s/%s", argv[3], dp->d_name); // get full path to the result file
@@ -60,7 +61,7 @@ int main(int argc, char** argv){
 		if (cryp_func(cryp, res, key) == -1) return error(CRYP_ERROR); // encrypting/decrypting the file
 		lseek(key, 0, SEEK_SET); // return to the starting point of the key file
 		if (close(cryp) == -1 || close(res) == -1) return error(CLOSE_ERROR);
-		dp = (struct dirent*) readdir(cryp);
+		dp = readdir(cryp);
 	}
 	if ((int) close(key) == -1) return error(CLOSE_ERROR);	
 	if ((int) closedir(cryp) == -1) return error(CLOSEDIR_ERROR);
