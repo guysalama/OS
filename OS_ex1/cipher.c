@@ -26,6 +26,7 @@ int error(char* msg);
 int cryp_error(char* msg);
 
 int main(int argc, char** argv){
+	setvbuf(stdout, NULL, _IONBF, 0);
 	int key, cryp, res;
 	struct dirent *dp;
 	struct stat statbuf;
@@ -49,15 +50,9 @@ int main(int argc, char** argv){
 		if (stat(cryp_path, &statbuf) == -1) return error(STAT_ERROR); // call stat to get file metadata
 		if ((statbuf.st_mode & S_IFMT) == S_IFDIR) continue; // skip directories
 		cryp = open(cryp_path, O_RDONLY);// open encrypted/decrypted file
-		if (cryp == -1){ 
-			printf(OPEN_ERROR, strerror(errno));
-			return errno;
-		}
+		if (cryp == -1) return error(OPEN_ERROR);
 		res = open(res_path, O_CREAT | O_TRUNC | O_RDWR);
-		if (res == -1){
-			printf(OPEN_ERROR, strerror(errno));
-			return errno;
-		}
+		if (res == -1) return error(OPEN_ERROR);
 		if (cryp_func(cryp, res, key) == -1) return error(CRYP_ERROR); // encrypting/decrypting the file
 		lseek(key, 0, SEEK_SET); // return to the starting point of the key file
 		if (close(cryp) == -1 || close(res) == -1) return error(CLOSE_ERROR);
@@ -67,7 +62,7 @@ int main(int argc, char** argv){
 }
 
 int cryp_func(int cryp, int key, int res){
-	int key_cnt, cryp_cnt, idx, i;
+	int key_cnt, cryp_cnt, tot_key_cnt, i;
 	char key_buf[BUF_SIZE + 1], cryp_buf[BUF_SIZE + 1], res_buf[BUF_SIZE + 1]; // read first 4000 characters
 	key_buf[BUF_SIZE] = '\0'; // string closer
 	cryp_buf[BUF_SIZE] = '\0';
@@ -75,23 +70,21 @@ int cryp_func(int cryp, int key, int res){
 	do{
 		key_cnt = read(key, key_buf, BUFSIZ);
 		if (key_cnt == -1) return cryp_error(READ_ERROR);
-		if (key_cnt != BUF_SIZE) key_buf[key_cnt] = '\0';
-		idx = strlen(key_buf);
-		while (idx < BUF_SIZE){
-			lseek(key, 0, SEEK_SET);
-			key_cnt = read(key, &key_buf[idx], BUF_SIZE - idx);
-			if (key_cnt == -1) return cryp_error(READ_ERROR);
-			idx += key_cnt;
-			if (idx < BUF_SIZE) key_buf[idx] = '\0';
-		}
-
+		if (key_cnt != BUF_SIZE){
+			tot_key_cnt = key_cnt;
+			while (tot_key_cnt < BUF_SIZE){
+				lseek(key, 0, SEEK_SET); 
+				key_cnt = read(key, &key_buf[tot_key_cnt], BUF_SIZE - tot_key_cnt); //reads the keyfile from the beginning
+				if (key_cnt == -1) return cryp_error(READ_ERROR);
+				tot_key_cnt += key_cnt;
+			}
+		} 
 		cryp_cnt = read(cryp, cryp_buf, BUF_SIZE);
 		if (cryp_cnt == -1) return cryp_error(READ_ERROR);
 		if (cryp_cnt < BUF_SIZE){
 			cryp_buf[cryp_cnt] = EOF;
 			res_buf[cryp_cnt] = EOF;
 		}
-
 		for (i = 0; i < cryp_cnt; i++) res_buf[i] = key_buf[i] ^ cryp_buf[i];
 		if (write(res, res_buf, cryp_cnt) == -1) return cryp_error(WRITE_ERROR);
 	} while (cryp_cnt == BUF_SIZE);
