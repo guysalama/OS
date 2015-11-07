@@ -9,13 +9,13 @@
 #include <errno.h>
 #include <linux/limits.h>
 
-#define OPENDIR_ERROR "Error occurred while opening directory: %s\n"
-#define MKDIR_ERROR "Error occurred while creating directory: %s\n"
-#define OPEN_ERROR "Error occurred while openning file: %s\n"
-#define STAT_ERROR "Error occurred while getting file stat: %s\n"
-#define CRYP_ERROR "Error occurred while encrypting or decrypting a file: %s\n"
-#define CLOSE_ERROR "Error occurred while closing file: %s\n"
-#define CLOSEDIR_ERROR "Error occurred while closing directory: %s\n"
+#define OPENDIR_ERROR "Error occurred while opening the directory %s: %s\n"
+#define MKDIR_ERROR "Error occurred while creating the directory %s: %s\n"
+#define OPEN_ERROR "Error occurred while openning the file %s: %s\n"
+#define STAT_ERROR "Error occurred while getting file stat %s: %s\n"
+#define CRYP_ERROR "Error occurred while encrypting or decrypting the file %s: %s\n"
+#define CLOSE_ERROR "Error occurred while closing the file %s: %s\n"
+#define CLOSEDIR_ERROR "Error occurred while closing the directory%s: %s\n"
 #define READ_ERROR "Error occurred while reading from file: %s\n"
 #define WRITE_ERROR "Error occurred while writing to file: %s\n"
 #define BUF_SIZE 4000
@@ -26,39 +26,41 @@ int error(char* msg);
 int cryp_error(char* msg);
 
 int main(int argc, char** argv){
-	setvbuf(stdout, NULL, _IONBF, 0);
+	setbuf(stdout, NULL);
+	//setvbuf(stdout, NULL, _IONBF, 0);
 	int key, cryp, res;
 	struct dirent *dp;
 	struct stat statbuf;
 
 	assert(argc == 4);
 	DIR *cryp_dir = opendir(argv[1]);
-	if (cryp_dir == NULL) return error(OPENDIR_ERROR);
+	if (cryp_dir == NULL) return error(OPENDIR_ERROR, argv[1]);
 	DIR *res_dir = opendir(argv[3]);
 	if (res_dir == NULL){
 		if (mkdir(argv[3], S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0){
-			if (errno != EEXIST) return error(MKDIR_ERROR);
+			if (errno != EEXIST) return error(MKDIR_ERROR, argv[3]);
 		}
 	}
-	else if (closedir(res_dir) != 0) return error(CLOSEDIR_ERROR); 
+	else if (closedir(res_dir) != 0) return error(CLOSEDIR_ERROR, argv[3]);
 	key = open(argv[2], O_RDONLY);
-	if (key == -1) return error(OPEN_ERROR);
+	if (key == -1) return error(OPEN_ERROR, argv[2]);
 	char cryp_path[PATH_MAX], res_path[PATH_MAX];
 	while ((dp = readdir(cryp_dir)) != NULL){
 		sprintf(cryp_path, "%s/%s", argv[1], dp->d_name); // get full path to the encrypted/decrypted file
 		sprintf(res_path, "%s/%s", argv[3], dp->d_name); // get full path to the result file
-		if (stat(cryp_path, &statbuf) == -1) return error(STAT_ERROR); // call stat to get file metadata
+		if (stat(cryp_path, &statbuf) == -1) return error(STAT_ERROR, cryp_path); // call stat to get file metadata
 		if ((statbuf.st_mode & S_IFMT) == S_IFDIR) continue; // skip directories
 		cryp = open(cryp_path, O_RDONLY);// open encrypted/decrypted file
-		if (cryp == -1) return error(OPEN_ERROR);
+		if (cryp == -1) return error(OPEN_ERROR, cryp_path);
 		res = open(res_path, O_CREAT | O_TRUNC | O_RDWR);
-		if (res == -1) return error(OPEN_ERROR);
-		if (cryp_func(cryp, res, key) == -1) return error(CRYP_ERROR); // encrypting/decrypting the file
+		if (res == -1) return error(OPEN_ERROR, res_path);
+		if (cryp_func(cryp, key, res) == -1) return error(CRYP_ERROR, cryp_path); // encrypting/decrypting the file
 		lseek(key, 0, SEEK_SET); // return to the starting point of the key file
-		if (close(cryp) == -1 || close(res) == -1) return error(CLOSE_ERROR);
+		if (close(cryp) == -1) return error(CLOSE_ERROR, cryp_path);
+		if (close(res) == -1) return error(CLOSE_ERROR, res_path);
 	}
-	if (close(key) == -1) return error(CLOSE_ERROR);	
-	if (closedir(cryp_dir) == -1) return error(CLOSEDIR_ERROR);
+	if (close(key) == -1) return error(CLOSE_ERROR, argv[2]);	
+	if (closedir(cryp_dir) == -1) return error(CLOSEDIR_ERROR, argv[1]);
 }
 
 int cryp_func(int cryp, int key, int res){
@@ -92,8 +94,8 @@ int cryp_func(int cryp, int key, int res){
 	return 0;
 }
 
-int error(char* msg){
-	printf(msg, strerror(errno));
+int error(char* msg, char* details){
+	printf(msg, details, strerror(errno));
 	return errno;
 }
 
