@@ -27,7 +27,7 @@ int cryp_error(char* msg);
 
 int main(int argc, char** argv){
 	setbuf(stdout, NULL);
-	//setvbuf(stdout, NULL, _IONBF, 0);
+
 	int key, cryp, res;
 	struct dirent *dp;
 	struct stat statbuf;
