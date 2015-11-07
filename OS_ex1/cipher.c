@@ -71,7 +71,6 @@ int cryp_func(int cryp, int key, int res){
 	res_buf[BUF_SIZE] = '\0';
 	do{
 		key_cnt = read(key, key_buf, BUF_SIZE);
-		printf("%d", key_cnt);
 		if (key_cnt == -1) return cryp_error(READ_ERROR);
 		if (key_cnt != BUF_SIZE){
 			tot_key_cnt = key_cnt;
