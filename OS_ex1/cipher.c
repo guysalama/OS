@@ -33,7 +33,7 @@ int main(int argc, char** argv){
 	assert(argc == 4);
 	DIR *cryp_dir = opendir(argv[1]);
 	if (cryp_dir == NULL) return error(OPENDIR_ERROR);
-	if (mkdir(argv[3]) != 0){
+	if (mkdir(argv[3], S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0){
 		if (errno != EEXIST) return error(MKDIR_ERROR);
 	}
 	DIR *res_dir = opendir(argv[3]);
@@ -41,7 +41,7 @@ int main(int argc, char** argv){
 	key = open(argv[2], O_RDONLY);
 	if (key == -1) return error(OPEN_ERROR);
 	char cryp_path[PATH_MAX], res_path[PATH_MAX];
-	dp = readdir(cryp);
+	dp = (struct dirent*) readdir(cryp);
 	while (dp != NULL){
 		sprintf(cryp_path, "%s/%s", argv[1], dp->d_name); // get full path to the encrypted/decrypted file
 		sprintf(res_path, "%s/%s", argv[3], dp->d_name); // get full path to the result file
@@ -49,21 +49,21 @@ int main(int argc, char** argv){
 		if ((statbuf.st_mode & S_IFMT) == S_IFDIR) continue; // skip directories
 		cryp = open(cryp_path, O_RDONLY);// open encrypted/decrypted file
 		if (cryp == -1){ 
-			printf(OPEN_ERROR, cryp_path, strerror(errno));
+			printf(OPEN_ERROR, strerror(errno));
 			return errno;
 		}
 		res = open(res_path, O_CREAT | O_TRUNC | O_RDWR);
 		if (res == -1){
-			printf(OPEN_ERROR, res_path, strerror(errno));
+			printf(OPEN_ERROR, strerror(errno));
 			return errno;
 		}
 		if (cryp_func(cryp, res, key) == -1) return error(CRYP_ERROR); // encrypting/decrypting the file
 		lseek(key, 0, SEEK_SET); // return to the starting point of the key file
 		if (close(cryp) == -1 || close(res) == -1) return error(CLOSE_ERROR);
-		dp = readdir(cryp);
+		dp = (struct dirent*) readdir(cryp);
 	}
-	if (close(key) == -1) return error(CLOSE_ERROR);	
-	if (closedir(cryp) == -1) return error(CLOSEDIR_ERROR);
+	if ((int) close(key) == -1) return error(CLOSE_ERROR);	
+	if ((int) closedir(cryp) == -1) return error(CLOSEDIR_ERROR);
 }
 
 int cryp_func(int cryp, int key, int res){
