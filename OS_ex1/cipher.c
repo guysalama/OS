@@ -41,7 +41,8 @@ int main(int argc, char** argv){
 	key = open(argv[2], O_RDONLY);
 	if (key == -1) return error(OPEN_ERROR);
 	char cryp_path[PATH_MAX], res_path[PATH_MAX];
-	while ((dp = readdir(cryp)) != NULL){
+	dp = readdir(cryp_dir);
+	while (dp != NULL){
 		sprintf(cryp_path, "%s/%s", argv[1], dp->d_name); // get full path to the encrypted/decrypted file
 		sprintf(res_path, "%s/%s", argv[3], dp->d_name); // get full path to the result file
 		if (stat(cryp_path, &statbuf) == -1) return error(STAT_ERROR); // call stat to get file metadata
@@ -59,9 +60,10 @@ int main(int argc, char** argv){
 		if (cryp_func(cryp, res, key) == -1) return error(CRYP_ERROR); // encrypting/decrypting the file
 		lseek(key, 0, SEEK_SET); // return to the starting point of the key file
 		if (close(cryp) == -1 || close(res) == -1) return error(CLOSE_ERROR);
+		dp = readdir(cryp_dir);
 	}
-	if ((int) close(key) == -1) return error(CLOSE_ERROR);	
-	if ((int) closedir(cryp) == -1) return error(CLOSEDIR_ERROR);
+	if (close(key) == -1) return error(CLOSE_ERROR);	
+	if (closedir(cryp_dir) == -1) return error(CLOSEDIR_ERROR);
 }
 
 int cryp_func(int cryp, int key, int res){
