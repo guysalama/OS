@@ -38,11 +38,11 @@ int main(int argc, char** argv){
 	}
 	DIR *res_dir = opendir(argv[3]);
 	if (res_dir == NULL) return error(OPENDIR_ERROR);
+	if (closedir(res_dir) != 0) return error(CLOSEDIR_ERROR); //???*********
 	key = open(argv[2], O_RDONLY);
 	if (key == -1) return error(OPEN_ERROR);
 	char cryp_path[PATH_MAX], res_path[PATH_MAX];
-	dp = readdir(cryp_dir);
-	while (dp != NULL){
+	while ((dp = readdir(cryp_dir)) != NULL){
 		sprintf(cryp_path, "%s/%s", argv[1], dp->d_name); // get full path to the encrypted/decrypted file
 		sprintf(res_path, "%s/%s", argv[3], dp->d_name); // get full path to the result file
 		if (stat(cryp_path, &statbuf) == -1) return error(STAT_ERROR); // call stat to get file metadata
@@ -60,7 +60,6 @@ int main(int argc, char** argv){
 		if (cryp_func(cryp, res, key) == -1) return error(CRYP_ERROR); // encrypting/decrypting the file
 		lseek(key, 0, SEEK_SET); // return to the starting point of the key file
 		if (close(cryp) == -1 || close(res) == -1) return error(CLOSE_ERROR);
-		dp = readdir(cryp_dir);
 	}
 	if (close(key) == -1) return error(CLOSE_ERROR);	
 	if (closedir(cryp_dir) == -1) return error(CLOSEDIR_ERROR);
@@ -73,7 +72,7 @@ int cryp_func(int cryp, int key, int res){
 	cryp_buf[BUF_SIZE] = '\0';
 	res_buf[BUF_SIZE] = '\0';
 	do{
-		key_cnt = read(key, key_buf, 4000);
+		key_cnt = read(key, key_buf, BUFSIZ);
 		if (key_cnt == -1) return cryp_error(READ_ERROR);
 		if (key_cnt != BUF_SIZE) key_buf[key_cnt] = '\0';
 		idx = strlen(key_buf);
@@ -94,7 +93,7 @@ int cryp_func(int cryp, int key, int res){
 
 		for (i = 0; i < cryp_cnt; i++) res_buf[i] = key_buf[i] ^ cryp_buf[i];
 		if (write(res, res_buf, cryp_cnt) == -1) return cryp_error(WRITE_ERROR);
-	} while (cryp_cnt = BUF_SIZE);
+	} while (cryp_cnt == BUF_SIZE);
 	return 0;
 }
 
