@@ -22,7 +22,7 @@
 
 //Declarations
 int cryp_func(int cryp, int key, int res);
-int error(char* msg);
+int error(char* msg, char* details);
 int cryp_error(char* msg);
 
 int main(int argc, char** argv){
@@ -37,7 +37,7 @@ int main(int argc, char** argv){
 	if (cryp_dir == NULL) return error(OPENDIR_ERROR, argv[1]);
 	DIR *res_dir = opendir(argv[3]);
 	if (res_dir == NULL){
-		if (mkdir(argv[3], S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH, 0777) != 0){
+		if (mkdir(argv[3], S_IRWXU | S_IRWXG | S_IRWXO) != 0){
 			if (errno != EEXIST) return error(MKDIR_ERROR, argv[3]);
 		}
 	}
@@ -52,7 +52,7 @@ int main(int argc, char** argv){
 		if ((statbuf.st_mode & S_IFMT) == S_IFDIR) continue; // skip directories
 		cryp = open(cryp_path, O_RDONLY);// open encrypted/decrypted file
 		if (cryp == -1) return error(OPEN_ERROR, cryp_path);
-		res = open(res_path, O_CREAT | O_TRUNC | O_RDWR, 0777);
+		res = open(res_path, O_CREAT | O_TRUNC | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
 		if (res == -1) return error(OPEN_ERROR, res_path);
 		if (cryp_func(cryp, key, res) == -1) return error(CRYP_ERROR, cryp_path); // encrypting/decrypting the file
 		lseek(key, 0, SEEK_SET); // return to the starting point of the key file
