@@ -33,12 +33,13 @@ int main(int argc, char** argv){
 	assert(argc == 4);
 	DIR *cryp_dir = opendir(argv[1]);
 	if (cryp_dir == NULL) return error(OPENDIR_ERROR);
-	if (mkdir(argv[3], S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0){
-		if (errno != EEXIST) return error(MKDIR_ERROR);
-	}
 	DIR *res_dir = opendir(argv[3]);
-	if (res_dir == NULL) return error(OPENDIR_ERROR);
-	if (closedir(res_dir) != 0) return error(CLOSEDIR_ERROR); //???*********
+	if (res_dir == NULL){
+		if (mkdir(argv[3], S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0){
+			if (errno != EEXIST) return error(MKDIR_ERROR);
+		}
+	}
+	else if (closedir(res_dir) != 0) return error(CLOSEDIR_ERROR); 
 	key = open(argv[2], O_RDONLY);
 	if (key == -1) return error(OPEN_ERROR);
 	char cryp_path[PATH_MAX], res_path[PATH_MAX];
