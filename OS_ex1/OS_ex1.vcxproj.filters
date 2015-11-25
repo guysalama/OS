@@ -24,6 +24,18 @@
     <ClCompile Include="cipher.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ref2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ex2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ref2_2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="raid0.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="script.sh">
