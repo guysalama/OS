@@ -36,6 +36,9 @@
     <ClCompile Include="raid0.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="raid10.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="script.sh">
