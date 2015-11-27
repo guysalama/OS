@@ -28,11 +28,12 @@
 #define BUFFER_SIZE (BLOCK_SIZE * 2)
 
 //Declarations
+int restore(int dev_idx);
 int do_raid10_rw(char* operation, int sector, int count);
 int find_next_available_device(int raid0_idx, int prev_idx);
-void close_diveces();
 int error(char* msg, int details);
 int raid10_rw_error(char* msg, int details);
+void close_diveces();
 
 //Globals
 char	buf[BUFFER_SIZE];
@@ -107,7 +108,7 @@ int restore(int dev_idx){
 	int raid0_idx = dev_idx / num_raid1_dev;
 	int raid1_idx = find_next_available_device(raid0_idx, 0); //find available device to copy from
 	while (raid1_idx != -1){
-		off_t offset = lseek(dev_fd[dev_idx], 0, SEEK_CUR);
+		off_t offset = lseek(dev_fd[dev_idx], 0, SEEK_CUR); 
 		lseek(dev_fd[raid0_idx + raid1_idx], offset, SEEK_SET);
 		read_size = read(dev_fd[raid0_idx + raid1_idx], buf, BUFFER_SIZE);
 		while (read_size > 0){
@@ -119,7 +120,7 @@ int restore(int dev_idx){
 			}
 			read_size = read(dev_fd[raid0_idx + raid1_idx], buf, BUFFER_SIZE);
 		}
-		if (read_size == -1){
+		if (read_size == -1){ //problem accured while reading the available device
 			close(dev_fd[dev_idx]; //assuming close always work
 			dev_fd[raid0_idx + raid1_idx] = -1;
 			raid1_idx = find_next_available_device(raid0_idx, 0);
@@ -202,13 +203,6 @@ int find_next_available_device(int raid0_idx, int prev_idx){
 }
 
 
-void close_diveces(){
-	int i;
-	for (i = 0; i < num_dev; i++) {
-		if (dev_fd[i] >= 0) close(dev_fd[i]); //assuming close always work
-	}
-}
-
 int error(char* msg, int details){
 	if (details == -1) printf(msg, strerror(errno));
 	else printf(msg, details, strerror(errno));
@@ -219,4 +213,11 @@ int error(char* msg, int details){
 int raid10_rw_error(char* msg, int details){
 	printf(msg, details, strerror(errno));
 	return -1;
+}
+
+void close_diveces(){
+	int i;
+	for (i = 0; i < num_dev; i++) {
+		if (dev_fd[i] >= 0) close(dev_fd[i]); //assuming close always work
+	}
 }
