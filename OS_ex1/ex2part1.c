@@ -9,10 +9,10 @@
 #include <errno.h>
 #include <sys/time.h>
 
-#define ARGS_ERROR "The program accepts just three command-line arguments"
-#define ARG_ERROR "The given argument: %s are not valid"
-#define LINK_ERROR "The file is symbolic link or has additional hard links"
-#define BLOCK_ERROR "The input file %s is a block device"
+#define ARGS_ERROR "The program accepts just three command-line arguments\n"
+#define ARG_ERROR "The given argument: %s are not valid\n"
+#define LINK_ERROR "The file is symbolic link or has additional hard links\n"
+#define BLOCK_ERROR "The input file %s is a block device\n"
 
 #define OPEN_ERROR "Error occurred while openning the file %s: %s\n"
 #define STAT_ERROR "Error occurred while getting file stat %s: %s\n"
@@ -34,7 +34,7 @@ int main(int argc, char** argv){
 	if (typeCheck(argv[1]) == -1){
 		return -1;
 	}
-	if (strcmp(argv[2], "1") != 0 || strcmp(argv[2], "0") != 0){
+	if (!(strcmp(argv[2], "1") == 0 || strcmp(argv[2], "0") == 0)){
 		printf(ARG_ERROR, argv[2]);
 		return -1;
 	}
@@ -63,17 +63,16 @@ int main(int argc, char** argv){
 		int offset = (random() % repeats) * ws;
 		if (lseek(fd, offset, SEEK_SET) == (off_t)-1){
 			printf(SEEK_ERROR, argv[1], strerror(errno));
+			close(fd);
 			return -1;
 		}
 		if (write(fd, buf, ws) == -1){
 			printf(WRITE_ERROR, argv[1], strerror(errno));
+			close(fd);
 			return -1;
 		}
 	}
-	if (close(fd) != 0){
-		printf(CLOSE_ERROR, argv[1], strerror(errno));
-		return -1;
-	}
+	close(fd);
 
 	gettimeofday(&t2, NULL);
 	elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0;      // sec to ms
@@ -128,10 +127,7 @@ int writeRandom(int fd, char* path){
 			return -1;
 		}
 	}
-	if (close(fd) == -1){
-		printf(CLOSE_ERROR, path, strerror(errno));
-		return -1;
-	}
+	close(fd);
 	return 1;
 }
 
