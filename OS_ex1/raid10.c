@@ -50,8 +50,7 @@ int main(int argc, char** argv){
 
 	num_dev = argc - 2; // number of devices == number of arguments (ignore 1st) - 1
 	num_raid1_dev = atoi(argv[1]);
-	num_raid0_dev = num_dev / num_raid1_dev /*assuming that the total number of devices received as argument
-											is a multiple of the number of raid1 devices*/
+	num_raid0_dev = num_dev / num_raid1_dev //assuming that the total num of devices is a multiple of the num of raid1 devices
 	int _dev_fd[num_dev];
 	dev_fd = _dev_fd;
 
@@ -73,25 +72,28 @@ int main(int argc, char** argv){
 
 		// KILL specified device
 		else if (!strcmp(operation, "KILL")) {
-			if (close(dev_fd[sector]) == -1) return error(CLOSE_ERROR, sector);
+			close(dev_fd[sector]); //assuming close always work
 			dev_fd[sector] = -1;
 		}
 		// REPAIR
 		else if (!strcmp(operation, "REPAIR")) {
 			//close the old device
 			if (dev_fd[sector] != -1){
-				if (close(dev_fd[sector]) == -1) return error(CLOSE_ERROR, sector);
+				close(dev_fd[sector]); //assuming close always work
 				dev_fd[sector] = -1;
 			}
 			//open a new one 
 			dev_fd[sector] = open(countOrDev, O_RDWR);
 			if (dev_fd[sector] == -1) return error(OPEN_ERROR, sector);
 			//restore the data
-			restore(sector);
+			if (restore(sector) == -1) return error(WRITE_ERROR, sector);
 		}
 		// READ / WRITE
 		else{
-			if (do_raid10_rw(operation, sector, atoi(countOrDev)) == -1) return error(RAID_ERROR, -1);
+			if (do_raid10_rw(operation, sector, atoi(countOrDev)) == -1){
+				close_diveces();
+				return -1;
+			}
 		}
 	}
 
@@ -103,7 +105,7 @@ int main(int argc, char** argv){
 int restore(int dev_idx){
 	ssize_t read_size, write_size;
 	int raid0_idx = dev_idx / num_raid1_dev;
-	int raid1_idx = find_next_available_device(raid0_idx, 0);
+	int raid1_idx = find_next_available_device(raid0_idx, 0); //find available device to copy from
 	while (raid1_idx != -1){
 		off_t offset = lseek(dev_fd[dev_idx], 0, SEEK_CUR);
 		lseek(dev_fd[raid0_idx + raid1_idx], offset, SEEK_SET);
@@ -111,32 +113,23 @@ int restore(int dev_idx){
 		while (read_size > 0){
 			write_size = write(dev_fd[dev_idx], buf, read_size);
 			if (read_size != write_size){
-				if (close(dev_fd[dev_idx]) == -1){
-					printf(CLOSE_ERROR, dev_idx, strerror(errno));
-					return -1;
-				}
-				else {
-					dev_fd[dev_idx] = -1;
-					printf(WRITE_ERROR, dev_idx, strerror(errno));
-					return -1;
-				}
+				close(dev_fd[dev_idx]); //assuming close always work
+				dev_fd[dev_idx] = -1;
+				return -1;
 			}
 			read_size = read(dev_fd[raid0_idx + raid1_idx], buf, BUFFER_SIZE);
 		}
 		if (read_size == -1){
-			if (close(dev_fd[dev_idx]) == -1){
-				printf(CLOSE_ERROR, dev_idx, strerror(errno));
-				return -1;
-			}
+			close(dev_fd[dev_idx]; //assuming close always work
 			dev_fd[raid0_idx + raid1_idx] = -1;
 			raid1_idx = find_next_available_device(raid0_idx, 0);
 		}
 		else break; //  read_size == 0, EOF
 	}
-	if (raid1_idx == -1){
+	/*if (raid1_idx == -1){
 		printf(BAD_DEVICES_ERROR);
 		return -1;
-	}
+	}*/
 	return 0;
 }
 
@@ -163,7 +156,6 @@ int do_raid10_rw(char* operation, int sector, int count){
 		// validate calculations
 		if (num_sectors <= 0 || size > BUFFER_SIZE || offset + size > DEVICE_SIZE){
 			printf(UNVALID_CALC);
-			errno = EIO; // input/output error
 			return -1;
 		}
 
@@ -171,7 +163,6 @@ int do_raid10_rw(char* operation, int sector, int count){
 		raid1_idx = find_next_available_device(raid0_idx, 0); 
 		if (raid1_idx == -1){ // data can’t be restored at all
 			printf(BAD_DEVICES_ERROR);
-			errno = ENODEV; // no such device
 			return -1;
 		}
 		
@@ -214,9 +205,7 @@ int find_next_available_device(int raid0_idx, int prev_idx){
 void close_diveces(){
 	int i;
 	for (i = 0; i < num_dev; i++) {
-		if (dev_fd[i] >= 0){
-			if (close(dev_fd[i]) == -1) error(CLOSE_ERROR, i);
-		}
+		if (dev_fd[i] >= 0) close(dev_fd[i]); //assuming close always work
 	}
 }
 
@@ -228,6 +217,6 @@ int error(char* msg, int details){
 }
 
 int raid10_rw_error(char* msg, int details){
-	printf(msg, strerror(errno));
+	printf(msg, details, strerror(errno));
 	return -1;
 }
