@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/time.h>
@@ -25,7 +26,7 @@
 #define KB 1024
 
 int main(int argc, char** argv){
-	int i, j, ws, fd;
+	int i, j, ws, fd, o_direct;
 	if (argc != 4){
 		printf(ARGS_ERROR);
 		return -1;
@@ -33,7 +34,7 @@ int main(int argc, char** argv){
 	if (typeCheck(argv[1]) == -1){
 		return -1;
 	}
-	if (strcmp(argv[2], "1") != 0 || strcmp(argv[1], "0") != 0){
+	if (strcmp(argv[2], "1") != 0 || strcmp(argv[2], "0") != 0){
 		printf(ARG_ERROR, argv[2]);
 		return -1;
 	}
@@ -50,10 +51,11 @@ int main(int argc, char** argv){
 	double elapsedTime;
 	gettimeofday(&t1, NULL); // start timer
 
-	if (atoi(argv[1])) fd = open(argv[1], O_WRONLY | O_DIRECT, S_IRWXU | S_IRWXG | S_IRWXO);
+	o_direct = atoi(argv[2]);
+	if (o_direct) fd = open(argv[1], O_WRONLY | O_DIRECT, S_IRWXU | S_IRWXG | S_IRWXO);
 	else  fd = open(argv[1], O_WRONLY, S_IRWXU | S_IRWXG | S_IRWXO);
 	if (fd == -1){
-		printf(OPEN_ERROR, argv[1], strettor(errno));
+		printf(OPEN_ERROR, argv[2], strettor(errno));
 		return -1;
 	}
 	int repeats = (128 * MB) / (ws * KB);
@@ -114,8 +116,6 @@ int typeCheck(char* path){
 		}
 	}
 }
-
-
 
 
 int writeRandom(int fd, char* path){
