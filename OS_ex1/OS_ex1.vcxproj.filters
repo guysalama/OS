@@ -39,6 +39,9 @@
     <ClCompile Include="raid10.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ex2part1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="script.sh">

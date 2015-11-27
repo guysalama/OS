@@ -81,6 +81,7 @@
     <ClCompile Include="cipher.c" />
     <ClCompile Include="ex1.c" />
     <ClCompile Include="ex2.c" />
+    <ClCompile Include="ex2part1.c" />
     <ClCompile Include="liad.c" />
     <ClCompile Include="raid0.c" />
     <ClCompile Include="raid10.c" />
