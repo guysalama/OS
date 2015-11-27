@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <errno.h> 
 #include <string.h>
+#include <linux/limits.h>
 
 #define OPEN_ERROR "Error occurred while openning the device %d: %s\n"
 #define SEEK_ERROR "Error occurred while seeking in the device %d: %s\n"
@@ -64,19 +65,34 @@ int main(int argc, char** argv){
 	// vars for parsing input line
 	char operation[20];
 	int sector;
-	int count;
+	char countOrDev[PATH_MAX];
 
 	// read input lines to get command of type "OP <SECTOR> <COUNT>"
 	while (fgets(line, 1024, stdin) != NULL) {
-		if (sscanf(line, "%s %d %d", operation, &sector, &count) != 3) return error(SCANF_ERROR, -1);
+		if (sscanf(line, "%s %d %d", operation, &sector, countOrDev) != 3) return error(SCANF_ERROR, -1);
 
 		// KILL specified device
 		else if (!strcmp(operation, "KILL")) {
 			if (close(dev_fd[sector]) == -1) return error(CLOSE_ERROR, sector);
 			dev_fd[sector] = -1;
 		}
+		// REPAIR
+		else if (!strcmp(operation, "REPAIR")) {
+			//close the old device
+			if (dev_fd[sector] != -1){
+				if (close(dev_fd[sector]) == -1) return error(CLOSE_ERROR, sector);
+				dev_fd[sector] = -1;
+			}
+			//open a new one 
+			dev_fd[sector] = open(countOrDev, O_RDWR);
+			if (dev_fd[sector] == -1) return error(OPEN_ERROR, sector);
+			//restore the data
+			restore(sector);
+		}
 		// READ / WRITE
-		else if (do_raid10_rw(operation, sector, count) == -1) return error(RAID_ERROR, -1);
+		else{
+			if (do_raid10_rw(operation, sector, atoi(countOrDev)) == -1) return error(RAID_ERROR, -1);
+		}
 	}
 
 	// close all the open devices
@@ -84,6 +100,45 @@ int main(int argc, char** argv){
 	return 0;
 }
 
+int restore(int dev_idx){
+	ssize_t read_size, write_size;
+	int raid0_idx = dev_idx / num_raid1_dev;
+	int raid1_idx = find_next_available_device(raid0_idx, 0);
+	while (raid1_idx != -1){
+		off_t offset = lseek(dev_fd[dev_idx], 0, SEEK_CUR);
+		lseek(dev_fd[raid0_idx + raid1_idx], offset, SEEK_SET);
+		read_size = read(dev_fd[raid0_idx + raid1_idx], buf, BUFFER_SIZE);
+		while (read_size > 0){
+			write_size = write(dev_fd[dev_idx], buf, read_size);
+			if (read_size != write_size){
+				if (close(dev_fd[dev_idx]) == -1){
+					printf(CLOSE_ERROR, dev_idx, strerror(errno));
+					return -1;
+				}
+				else {
+					dev_fd[dev_idx] = -1;
+					printf(WRITE_ERROR, dev_idx, strerror(errno));
+					return -1;
+				}
+			}
+			read_size = read(dev_fd[raid0_idx + raid1_idx], buf, BUFFER_SIZE);
+		}
+		if (read_size == -1){
+			if (close(dev_fd[dev_idx]) == -1){
+				printf(CLOSE_ERROR, dev_idx, strerror(errno));
+				return -1;
+			}
+			dev_fd[raid0_idx + raid1_idx] = -1;
+			raid1_idx = find_next_available_device(raid0_idx, 0);
+		}
+		else break; //  read_size == 0, EOF
+	}
+	if (raid1_idx == -1){
+		printf(BAD_DEVICES_ERROR);
+		return -1;
+	}
+	return 0;
+}
 
 int do_raid10_rw(char* operation, int sector, int count){
 	int i = sector, idx = 0, raid1_idx, dev_idx;
