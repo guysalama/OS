@@ -51,7 +51,7 @@ int main(int argc, char** argv){
 
 	num_dev = argc - 2; // number of devices == number of arguments (ignore 1st) - 1
 	num_raid1_dev = atoi(argv[1]);
-	num_raid0_dev = num_dev / num_raid1_dev //assuming that the total num of devices is a multiple of the num of raid1 devices
+	num_raid0_dev = num_dev / num_raid1_dev; //assuming that the total num of devices is a multiple of the num of raid1 devices
 	int _dev_fd[num_dev];
 	dev_fd = _dev_fd;
 
@@ -69,7 +69,7 @@ int main(int argc, char** argv){
 
 	// read input lines to get command of type "OP <SECTOR> <COUNT>"
 	while (fgets(line, 1024, stdin) != NULL) {
-		if (sscanf(line, "%s %d %d", operation, &sector, countOrDev) != 3) return error(SCANF_ERROR, -1);
+		if (sscanf(line, "%s %d %s", operation, &sector, countOrDev) != 3) return error(SCANF_ERROR, -1);
 
 		// KILL specified device
 		else if (!strcmp(operation, "KILL")) {
@@ -121,7 +121,7 @@ int restore(int dev_idx){
 			read_size = read(dev_fd[raid0_idx + raid1_idx], buf, BUFFER_SIZE);
 		}
 		if (read_size == -1){ //problem accured while reading the available device
-			close(dev_fd[dev_idx]; //assuming close always work
+			close(dev_fd[dev_idx]); //assuming close always work
 			dev_fd[raid0_idx + raid1_idx] = -1;
 			raid1_idx = find_next_available_device(raid0_idx, 0);
 		}
@@ -197,7 +197,7 @@ int find_next_available_device(int raid0_idx, int prev_idx){
 	if (prev_idx == num_raid1_dev) return -1;
 	for (raid1_idx; raid1_idx <= num_raid1_dev; raid1_idx++){
 		if (dev_fd[raid0_idx + raid1_idx] >= 0) break;
-		if (j = num_raid1_dev) return -1;
+		if (raid1_idx == num_raid1_dev) return -1;
 	}
 	return raid1_idx;
 }
