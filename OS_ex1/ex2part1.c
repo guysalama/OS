@@ -55,7 +55,7 @@ int main(int argc, char** argv){
 	if (o_direct) fd = open(argv[1], O_WRONLY | O_DIRECT, S_IRWXU | S_IRWXG | S_IRWXO);
 	else  fd = open(argv[1], O_WRONLY, S_IRWXU | S_IRWXG | S_IRWXO);
 	if (fd == -1){
-		printf(OPEN_ERROR, argv[2], strettor(errno));
+		printf(OPEN_ERROR, argv[2], strerror(errno));
 		return -1;
 	}
 	int repeats = (128 * MB) / (ws * KB);
