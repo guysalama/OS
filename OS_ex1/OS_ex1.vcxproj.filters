@@ -42,6 +42,12 @@
     <ClCompile Include="ex2part1.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="writer_pipe.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="reader_pipe.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="script.sh">

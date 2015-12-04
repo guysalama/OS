@@ -83,6 +83,8 @@
     <ClCompile Include="ex2.c" />
     <ClCompile Include="ex2part1.c" />
     <ClCompile Include="liad.c" />
+    <ClCompile Include="reader_pipe.c" />
+    <ClCompile Include="writer_pipe.c" />
     <ClCompile Include="raid0.c" />
     <ClCompile Include="raid10.c" />
     <ClCompile Include="ref2.c" />
