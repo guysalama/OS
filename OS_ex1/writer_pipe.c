@@ -14,6 +14,10 @@
 #define FUNC_ERROR "Error occurred while running the function %s: %s\n"
 #define LINE_SIZE 100
 
+// Declaretions
+int write_user_input(int fd);
+char * get_line(void);
+
 int main(int argc, char** argv){
 	int fd;
 	if (argc != 2) {
@@ -49,8 +53,9 @@ int main(int argc, char** argv){
 
 
 int write_user_input(int fd){
+	char * line;
 	while (1){
-		char* line = get_line();
+		line = get_line();
 		if (write(fd, line, strlen(line) + 1) == -1){
 			printf(FUNC_ERROR, "write", strerror(errno));
 			free(line);
