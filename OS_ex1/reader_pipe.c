@@ -9,11 +9,15 @@
 #include <errno.h>
 #include <sys/time.h>
 
+// Messages
 #define ARGS_ERROR "The program accepts just one command-line arguments\n"
 #define ARG_ERROR "The given path %s is not valid: %s\n"
 #define FUNC_ERROR "Error occurred while running the function %s: %s\n"
 #define FIFO_ERROR "The given file in path %s isn't a FIFO file\n"
 #define BUF_SIZE 4096
+
+// Globals
+char read_buf[BUF_SIZE];
 
 
 int main(int argc, char** argv){
@@ -44,24 +48,32 @@ int main(int argc, char** argv){
 }
 
 int read_from_fifo(int fd){
-	size_t len, tot_len;
-	char read_buf[BUF_SIZE];
+	size_t len, total_len;
 	read_buf[BUF_SIZE] = '\0';
 	while (0){
 		len = read(fd, read_buf, BUF_SIZE);
 		if (len == -1) return -1;
+		if (len == BUF_SIZE){
+			total_len += len;
+			lseek(fd, total_len, SEEK_SET);
+			print_chars(len);
+			continue;
+		}
 		if (len != BUF_SIZE){
-			tot_len = len;
-			while (tot_len < BUF_SIZE){
-				lseek(fd, 0, SEEK_SET);
-				len = read(fd, &read_buf[tot_len], BUF_SIZE - tot_len); //reads the fdfile from the beginning
-				if (len == -1) return -1;
-				tot_len += len;
-			}
-			printf(read_buf);
+			read_buf[len] = '\0';
+			print_chars(len);
 			break;
 		}
-		else printf(read_buf);;
 	}
 	return 0;
 }
+
+
+int print_chars(int len){
+	int i;
+	for (i = 0; i <= len; i++){
+		printf("%c", read_buf[i]);
+	}
+}
+
+
