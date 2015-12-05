@@ -10,7 +10,7 @@
 #include <sys/time.h>
 
 #define ARGS_ERROR "The program accepts just one command-line arguments\n"
-#define ARG_ERROR "The given path %s is not valid\n"
+#define ARG_ERROR "The given path %s is not valid: %s\n"
 #define FUNC_ERROR "Error occurred while running the function %s: %s\n"
 #define LINE_SIZE 100
 

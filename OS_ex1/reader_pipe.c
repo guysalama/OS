@@ -20,6 +20,9 @@
 char read_buf[BUF_SIZE];
 
 
+int read_from_fifo(int fd);
+int print_chars(int len);
+
 int main(int argc, char** argv){
 	int fd, ret_val = 0;
 	size_t len = 0, read;
