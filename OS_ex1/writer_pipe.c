@@ -9,14 +9,14 @@
 #include <errno.h>
 #include <sys/time.h>
 
-#define ARGS_ERROR "The program accepts just one command-line arguments\n"
+#define ARGS_ERROR "The program accepts just one command-line argument\n"
 #define ARG_ERROR "The given path %s is not valid: %s\n"
 #define FUNC_ERROR "Error occurred while running the function %s: %s\n"
-#define LINE_SIZE 100
+#define LINE_SIZE 1024
 
 // Declaretions
 int write_user_input(int fd);
-char * get_line(void);
+//char * get_line(void);
 
 int main(int argc, char** argv){
 	int fd;
@@ -26,7 +26,7 @@ int main(int argc, char** argv){
 	}
 	struct stat st;
 	if (stat(argv[1], &st) == -1){ 
-		if (errno == ENOENT) mkfifo(argv[1], S_IWUSR | S_IWGRP | S_IWOTH); // The file doesn't exist
+		if (errno == ENOENT) mkfifo(argv[1], 0777); // The file doesn't exist
 		else{
 			printf(ARG_ERROR, argv[1], strerror(errno));
 			return -1;
@@ -38,11 +38,18 @@ int main(int argc, char** argv){
 				printf(FUNC_ERROR, "unlink", strerror(errno));
 				return -1;
 			}
-			else mkfifo(argv[1], S_IWUSR | S_IWGRP | S_IWOTH);
+			else mkfifo(argv[1], 0777);
 		}
 	}
 	fd = open(argv[1], O_WRONLY);
-	if (write_user_input(fd) == -1) return -1;
+	if (fd == -1){
+		printf(FUNC_ERROR, "open", strerror(errno));
+		return -1;
+	}
+	if (write_user_input(fd) == -1){
+		close(fd);
+		return -1;
+	}
 	else{
 		remove(argv[1]);
 		close(fd);
@@ -51,49 +58,59 @@ int main(int argc, char** argv){
 }
 
 
-
 int write_user_input(int fd){
-	char * line;
-	while (1){
-		line = get_line();
-		if (write(fd, line, strlen(line) + 1) == -1){
+	char line[LINE_SIZE];
+	while (fgets(line, LINE_SIZE, stdin) != NULL){
+		if (write(fd, line, strlen(line)) == -1){
 			printf(FUNC_ERROR, "write", strerror(errno));
-			free(line);
 			return -1;
 		}
-		if (line[strlen(line)] == EOF){
-			free(line);
-			break;
-		}
-		free(line);
 	}
 	return 0;
 }
 
-
-char * get_line(void) { //referance: http://stackoverflow.com/questions/314401/how-to-read-a-line-from-the-console-in-c
-	char * line = malloc(LINE_SIZE);
-	char * linep = line;
-	size_t lenmax = LINE_SIZE, len = lenmax;
-	int c;
-	
-	if (line == NULL) return NULL;
-	while (1){
-		c = fgetc(stdin);
-		if (c == EOF) break;
-		if (--len == 0) { //extand the line
-			len = lenmax;
-			char * linen = realloc(linep, lenmax *= 2);
-			if (linen == NULL) {
-				free(linep);
-				return NULL;
-			}
-			line = linen + (line - linep);
-			linep = linen;
-		}
-		*line++ = c;
-		if (c == '\n') break;
-	}
-	*line = '\0';
-	return linep;
-}
+//
+//int write_user_input(int fd){
+//	char * line;
+//	while (1){
+//
+//		line = get_line();
+//		if (line == NULL) return -1;
+//		if (write(fd, line, strlen(line) + 1) == -1){
+//			printf(FUNC_ERROR, "write", strerror(errno));
+//			free(line);
+//			return -1;
+//		}
+//		if (line[strlen(line)] == EOF){
+//			free(line);
+//			return 0;
+//		}
+//		free(line);
+//	}
+//}
+//
+//
+//char * get_line(void) { //referance: http://stackoverflow.com/questions/314401/how-to-read-a-line-from-the-console-in-c
+//	int c;
+//	size_t lenmax = LINE_SIZE, len = LINE_SIZE;
+//	char * line = malloc(LINE_SIZE), *curr_p = line;
+//	if (line == NULL) return NULL; //the malloc failed
+//	while (1){
+//		c = fgetc(stdin);
+//		if (c == EOF) break;
+//		if (--len == 0) { //extand the line
+//			len = lenmax;
+//			char * new_line = realloc(line, lenmax *= 2);
+//			if (new_line == NULL){ //the realloc failed
+//				free(line);
+//				return NULL;
+//			}
+//			curr_p = new_line + (curr_p - line);
+//			line = new_line;
+//		}
+//		*curr_p++ = c;
+//		if (c == '\n') break; //end of line
+//	}
+//	*curr_p = '\0';
+//	return line;
+//}
