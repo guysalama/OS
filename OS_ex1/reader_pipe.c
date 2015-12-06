@@ -19,6 +19,7 @@
 
 
 int read_from_fifo(int fd);
+int replace_acts(struct sigaction *act, struct sigaction *old_act);
 
 
 int main(int argc, char** argv){
@@ -28,9 +29,14 @@ int main(int argc, char** argv){
 		printf(ARGS_ERROR);
 		return -1;
 	}
-	struct sigaction act, old_act;
-	act = create_ign_act();
-	if (act == NULL) return -1;
+	struct sigaction old_act;
+	struct sigaction act;
+	act.sa_handler = SIG_IGN; //ignore the signal
+	act.sa_flags = 0;
+	if (sigemptyset(&act.sa_mask) == -1){
+		printf(SIG_ERROR, "SIG*", strerror(errno));
+		return -1;
+	}
 	struct stat st;
 	while (1){
 		if ((stat(argv[1], &st) == -1) && (errno == ENOENT)) sleep(1);
@@ -47,7 +53,7 @@ int main(int argc, char** argv){
 			printf(FUNC_ERROR, "open", strerror(errno));
 			return -1;
 		}
-		if (switch_acts(&act, &old_act) == -1){
+		if (replace_acts(&act, &old_act) == -1){
 			close(fd);
 			return -1;
 		}
@@ -56,7 +62,7 @@ int main(int argc, char** argv){
 			return -1;
 		}
 		close(fd);
-		if (switch_acts(&old_act, &act) == -1) return -1;
+		if (replace_acts(&old_act, &act) == -1) return -1;
 	}
 }
 
@@ -75,17 +81,18 @@ int read_from_fifo(int fd){
 	return 0;
 }
 
-struct sigaction create_ign_act(void){
-	struct sigaction new_act;
-	new_act.sa_handler = SIG_IGN; //ignore the signal
-	new_act.sa_flags = 0;
-	if (sigemptyset(&act.sa_mask) == -1){
-		printf(SIG_ERROR, "SIG*", strerror(errno));
-		return NULL;
-	}
-}
+//struct sigaction create_ign_act(void){
+//	struct sigaction new_act;
+//	new_act.sa_handler = SIG_IGN; //ignore the signal
+//	new_act.sa_flags = 0;
+//	if (sigemptyset(&act.sa_mask) == -1){
+//		printf(SIG_ERROR, "SIG*", strerror(errno));
+//		return NULL;
+//	}
+//	return new_act;
+//}
 
-int switch_acts(struct sigaction *act, struct sigaction *old_act){
+int replace_acts(struct sigaction *act, struct sigaction *old_act){
 	if (sigaction(SIGINT, new_signal, old_signal) == -1){
 		printf(SIG_ERROR, "SIGINT", strerror(errno));
 		return -1;

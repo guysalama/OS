@@ -18,34 +18,38 @@
 
 // Declaretions
 int write_user_input(int fd);
+int set_signals(void);
+void signals_handler(int signal);
 
 // Globals
 int fd;
+char * path;
 
 int main(int argc, char** argv){
 	if (argc != 2) {
 		printf(ARGS_ERROR);
 		return -1;
 	}
+	path = argv[1];
 	if (set_signals() == -1) return -1;
 	struct stat st;
-	if (stat(argv[1], &st) == -1){ 
-		if (errno == ENOENT) mkfifo(argv[1], 0777); // The file doesn't exist
+	if (stat(path, &st) == -1){ 
+		if (errno == ENOENT) mkfifo(path, 0777); // The file doesn't exist
 		else{
-			printf(ARG_ERROR, argv[1], strerror(errno));
+			printf(ARG_ERROR, path, strerror(errno));
 			return -1;
 		}
 	}
 	else{ //the file exist
 		if (!S_ISFIFO(st.st_mode)){ // It isn't fifo file
-			if (unlink(argv[1]) == -1){
+			if (unlink(path) == -1){
 				printf(FUNC_ERROR, "unlink", strerror(errno));
 				return -1;
 			}
-			else mkfifo(argv[1], 0777);
+			else mkfifo(path, 0777);
 		}
 	}
-	fd = open(argv[1], O_WRONLY);
+	fd = open(path, O_WRONLY);
 	if (fd == -1){
 		printf(FUNC_ERROR, "open", strerror(errno));
 		return -1;
@@ -94,11 +98,10 @@ int set_signals(void){
 }
 
 
-
 void signals_handler(int signal){
 	switch (signal){
 	case SIGINT: case SIGTERM:
-		if (unlink(argv[1]) == -1) printf(FUNC_ERROR, "unlink", strerror(errno));
+		if (unlink(path) == -1) printf(FUNC_ERROR, "unlink", strerror(errno));
 		close(fd);
 		exit(0);
 	case SIGPIPE:
