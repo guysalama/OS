@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,18 +6,20 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/time.h>
+#include <signal.h>
+//#include <sys/time.h>
 
 // Messages
 #define ARGS_ERROR "The program accepts just one command-line arguments\n"
 #define ARG_ERROR "The given path %s is not valid: %s\n"
 #define FUNC_ERROR "Error occurred while running the function %s: %s\n"
 #define FIFO_ERROR "The given file in path %s isn't a FIFO file\n"
+#define SIG_ERROR "Error occurred while setting %s handler: %s\n"
 #define LINE_SIZE 1024
-//#define BUF_SIZE 4096
+
 
 int read_from_fifo(int fd);
-//int print_chars(int len);
+
 
 int main(int argc, char** argv){
 	int fd, ret_val = 0;
@@ -27,20 +28,27 @@ int main(int argc, char** argv){
 		printf(ARGS_ERROR);
 		return -1;
 	}
+	struct sigaction act, old_act;
+	act = create_ign_act();
+	if (act == NULL) return -1;
 	struct stat st;
 	while (1){
-		if ((stat(argv[1], &st) == -1) && (errno != ENOENT)){
+		if ((stat(argv[1], &st) == -1) && (errno == ENOENT)) sleep(1);
+		if (stat(argv[1], &st) == -1){ // path exist, other error occurred 
 			printf(ARG_ERROR, argv[1], strerror(errno));
 			return -1;
 		}
-		while ((stat(argv[1], &st) == -1) && (errno == ENOENT)) sleep(1);
 		if (!S_ISFIFO(st.st_mode)){ // It isn't fifo file
 			printf(FIFO_ERROR, argv[1]);
 			return -1;
 		}
-		fd = open(argv[1], O_WRONLY);
+		fd = open(argv[1], O_RDONLY);
 		if (fd == -1){
 			printf(FUNC_ERROR, "open", strerror(errno));
+			return -1;
+		}
+		if (switch_acts(&act, &old_act) == -1){
+			close(fd);
 			return -1;
 		}
 		if (read_from_fifo(fd) == -1){
@@ -48,6 +56,7 @@ int main(int argc, char** argv){
 			return -1;
 		}
 		close(fd);
+		if (switch_acts(&old_act, &act) == -1) return -1;
 	}
 }
 
@@ -56,7 +65,7 @@ int read_from_fifo(int fd){
 	char line[LINE_SIZE];
 	do{
 		num = read(fd, line, LINE_SIZE);
-		if (read == -1){
+		if (num == -1){
 			printf(FUNC_ERROR, "read", strerror(errno));
 			return -1;
 		}
@@ -66,34 +75,23 @@ int read_from_fifo(int fd){
 	return 0;
 }
 
-//
-//int read_from_fifo(int fd){
-//	size_t len, total_len;
-//	read_buf[BUF_SIZE] = '\0';
-//	while (0){
-//		len = read(fd, read_buf, BUF_SIZE);
-//		if (len == -1) return -1;
-//		if (len == BUF_SIZE){
-//			total_len += len;
-//			lseek(fd, total_len, SEEK_SET);
-//			print_chars(len);
-//			continue;
-//		}
-//		if (len != BUF_SIZE){
-//			read_buf[len] = '\0';
-//			print_chars(len);
-//			break;
-//		}
-//	}
-//	return 0;
-//}
-//
-//
-//int print_chars(int len){
-//	int i;
-//	for (i = 0; i <= len; i++){
-//		printf("%c", read_buf[i]);
-//	}
-//}
-//
-//
+struct sigaction create_ign_act(void){
+	struct sigaction new_act;
+	new_act.sa_handler = SIG_IGN; //ignore the signal
+	new_act.sa_flags = 0;
+	if (sigemptyset(&act.sa_mask) == -1){
+		printf(SIG_ERROR, "SIG*", strerror(errno));
+		return NULL;
+	}
+}
+
+int switch_acts(struct sigaction *act, struct sigaction *old_act){
+	if (sigaction(SIGINT, new_signal, old_signal) == -1){
+		printf(SIG_ERROR, "SIGINT", strerror(errno));
+		return -1;
+	}
+	if (sigaction(SIGTERM, new_signal, old_signal) == -1){
+		printf(SIG_ERROR, "SIGTERM", strerror(errno));
+		return -1;
+	}
+}

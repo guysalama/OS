@@ -46,7 +46,7 @@ int main(int argc, char** argv){
 	assert(argc == 2);
 
 	struct sigaction new_signal, old_signal;
-	new_signal.sa_handler = SIG_IGN;
+	new_signal.sa_handler = SIG_IGN; 
 	sigemptyset(&new_signal.sa_mask);
 	new_signal.sa_flags = 0;
 

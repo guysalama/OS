@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,23 +6,28 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/time.h>
+#include <signal.h>
+//#include <sys/time.h>
 
 #define ARGS_ERROR "The program accepts just one command-line argument\n"
 #define ARG_ERROR "The given path %s is not valid: %s\n"
 #define FUNC_ERROR "Error occurred while running the function %s: %s\n"
+#define SIG_ERROR "Error occurred while setting %s handler: %s\n"
+#define CLOSED_PIPE "The writer holds an open FIFO file with no reader\n"
 #define LINE_SIZE 1024
 
 // Declaretions
 int write_user_input(int fd);
-//char * get_line(void);
+
+// Globals
+int fd;
 
 int main(int argc, char** argv){
-	int fd;
 	if (argc != 2) {
 		printf(ARGS_ERROR);
 		return -1;
 	}
+	if (set_signals() == -1) return -1;
 	struct stat st;
 	if (stat(argv[1], &st) == -1){ 
 		if (errno == ENOENT) mkfifo(argv[1], 0777); // The file doesn't exist
@@ -50,11 +54,8 @@ int main(int argc, char** argv){
 		close(fd);
 		return -1;
 	}
-	else{
-		remove(argv[1]);
-		close(fd);
-	}
-	return 0;
+	else signals_handler(SIGTERM);
+	//return 0;
 }
 
 
@@ -69,48 +70,43 @@ int write_user_input(int fd){
 	return 0;
 }
 
-//
-//int write_user_input(int fd){
-//	char * line;
-//	while (1){
-//
-//		line = get_line();
-//		if (line == NULL) return -1;
-//		if (write(fd, line, strlen(line) + 1) == -1){
-//			printf(FUNC_ERROR, "write", strerror(errno));
-//			free(line);
-//			return -1;
-//		}
-//		if (line[strlen(line)] == EOF){
-//			free(line);
-//			return 0;
-//		}
-//		free(line);
-//	}
-//}
-//
-//
-//char * get_line(void) { //referance: http://stackoverflow.com/questions/314401/how-to-read-a-line-from-the-console-in-c
-//	int c;
-//	size_t lenmax = LINE_SIZE, len = LINE_SIZE;
-//	char * line = malloc(LINE_SIZE), *curr_p = line;
-//	if (line == NULL) return NULL; //the malloc failed
-//	while (1){
-//		c = fgetc(stdin);
-//		if (c == EOF) break;
-//		if (--len == 0) { //extand the line
-//			len = lenmax;
-//			char * new_line = realloc(line, lenmax *= 2);
-//			if (new_line == NULL){ //the realloc failed
-//				free(line);
-//				return NULL;
-//			}
-//			curr_p = new_line + (curr_p - line);
-//			line = new_line;
-//		}
-//		*curr_p++ = c;
-//		if (c == '\n') break; //end of line
-//	}
-//	*curr_p = '\0';
-//	return line;
-//}
+int set_signals(void){
+	struct sigaction act;
+	act.sa_handler = &signals_handler;
+	act.sa_flags = 0;
+	if (sigemptyset(&act.sa_mask) == -1){
+		printf(SIG_ERROR, "SIG*", strerror(errno));
+		return -1;
+	}
+	if (sigaction(SIGINT, &act, NULL) == -1){
+		printf(SIG_ERROR, "SIGINT", strerror(errno));
+		return -1;
+	}
+	if (sigaction(SIGTERM, &act, NULL) == -1){
+		printf(SIG_ERROR, "SIGTERM", strerror(errno));
+		return -1;
+	}
+	if (sigaction(SIGPIPE, &act, NULL) == -1){
+		printf(SIG_ERROR, "SIGPIPE", strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+
+
+void signals_handler(int signal){
+	switch (signal){
+	case SIGINT: case SIGTERM:
+		if (unlink(argv[1]) == -1) printf(FUNC_ERROR, "unlink", strerror(errno));
+		close(fd);
+		exit(0);
+	case SIGPIPE:
+		printf(CLOSED_PIPE);
+		break;
+	default:
+		return;
+	}
+}
+
+
