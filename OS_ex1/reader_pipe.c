@@ -17,27 +17,28 @@
 #define SIG_ERROR "Error occurred while setting %s handler: %s\n"
 #define LINE_SIZE 1024
 
-
+// Declerations
 int read_from_fifo(int fd);
 int replace_acts(struct sigaction *act, struct sigaction *old_act);
 
 
 int main(int argc, char** argv){
-	int fd, ret_val = 0;
-	size_t len = 0, read;
 	if (argc != 2) {
 		printf(ARGS_ERROR);
 		return -1;
 	}
-	struct sigaction old_act;
+
+	int fd;
+	struct stat st;
+	struct sigaction old_act; 
 	struct sigaction act;
 	act.sa_handler = SIG_IGN; //ignore the signal
 	act.sa_flags = 0;
-	if (sigemptyset(&act.sa_mask) == -1){
-		printf(SIG_ERROR, "SIG*", strerror(errno));
+	if (sigemptyset(&act.sa_mask) == -1){ 
+		printf(SIG_ERROR, "signals", strerror(errno));
 		return -1;
 	}
-	struct stat st;
+
 	while (1){
 		while ((stat(argv[1], &st) == -1) && (errno == ENOENT)) sleep(1);
 		if (stat(argv[1], &st) == -1){ // path exist, other error occurred 
@@ -80,17 +81,6 @@ int read_from_fifo(int fd){
 	} while (num > 0);
 	return 0;
 }
-
-//struct sigaction create_ign_act(void){
-//	struct sigaction new_act;
-//	new_act.sa_handler = SIG_IGN; //ignore the signal
-//	new_act.sa_flags = 0;
-//	if (sigemptyset(&act.sa_mask) == -1){
-//		printf(SIG_ERROR, "SIG*", strerror(errno));
-//		return NULL;
-//	}
-//	return new_act;
-//}
 
 int replace_acts(struct sigaction *act, struct sigaction *old_act){
 	if (sigaction(SIGINT, act, old_act) == -1){

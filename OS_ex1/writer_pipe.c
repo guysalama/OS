@@ -79,7 +79,7 @@ int set_signals(void){
 	act.sa_handler = &signals_handler;
 	act.sa_flags = 0;
 	if (sigemptyset(&act.sa_mask) == -1){
-		printf(SIG_ERROR, "SIG*", strerror(errno));
+		printf(SIG_ERROR, "signals", strerror(errno));
 		return -1;
 	}
 	if (sigaction(SIGINT, &act, NULL) == -1){
