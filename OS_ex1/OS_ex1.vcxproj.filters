@@ -48,6 +48,9 @@
     <ClCompile Include="reader_pipe.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="copy_tool.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="script.sh">

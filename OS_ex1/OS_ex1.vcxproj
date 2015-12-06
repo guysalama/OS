@@ -79,6 +79,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="cipher.c" />
+    <ClCompile Include="copy_tool.c" />
     <ClCompile Include="ex1.c" />
     <ClCompile Include="ex2.c" />
     <ClCompile Include="ex2part1.c" />

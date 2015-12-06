@@ -1,5 +1,5 @@
-//comm?
-#include <stdio.h>
+#include <stdio.h> 
+#include <stdlib.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -8,115 +8,67 @@
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/mman.h>
 
 
-int enc_dec(int src, int key, int res){
-	int key_byte, file_byte = 4000, i, tmp;
-	char key_buf[4001], file_buf[4001], res_buf[4001];
-	key_buf[4000] = '\0';
-	file_buf[4000] = '\0';
-	res_buf[4000] = '\0';
-	while (file_byte == 4000){
-		if ((key_byte = read(key, key_buf, 4000)) == -1){
-			printf("Error reading from key file: %s\n", strerror(errno));
-			return 0;
-		}
-		if (key_byte != 4000) key_buf[key_byte] = '\0';
-		tmp = strlen(key_buf);
-		while (tmp < 4000){
-			lseek(key, 0, SEEK_SET);
-			if ((key_byte = read(key, &key_buf[tmp], 4000 - tmp)) == -1){
-				printf("Error reading from key file: %s\n", strerror(errno));
-				return 0;
-			}
-			tmp += key_byte;
-			if (tmp != 4000) key_buf[tmp] = '\0';
-		}
-
-		if ((file_byte = read(src, file_buf, 4000)) == -1){
-			printf("Error reading from file: %s\n", strerror(errno));
-			return 0;
-		}
-		if (file_byte != 4000){
-			file_buf[file_byte] = EOF;
-			res_buf[file_byte] = EOF;
-		}
-
-		for (i = 0; i < file_byte; i++)
-			res_buf[i] = key_buf[i] ^ file_buf[i];
-
-		if (write(res, res_buf, file_byte) == -1){
-			printf("Error writing to file: %s\n", strerror(errno));
-			return 0;
-		}
-	}
-	return 1;
+void clean_exit(char *src, char *dst, int fd_src, int fd_dst, int buf_size){
+	if (buf_size != 0) printf("Got error: %s, closing files.\n", strerror(errno));
+	if (src != NULL) munmap(src, buf_size);
+	if (dst != NULL) munmap(dst, buf_size);
+	close(fd_src);
+	close(fd_dst);
+	exit(0);
 }
 
 int main(int argc, char** argv){
-	setvbuf(stdout, NULL, _IONBF, 0);
+	assert(argc == 3);
+	char *src_path = argv[1];
+	char *dst_path = argv[2];
+	int fd_src, fd_dst;
+	int file_size, buf_size = sysconf(_SC_PAGE_SIZE);
+	if (2048 % buf_size == 0) buf_size = 2048;
+	int i, err, offset = 0;
+	char *src, *dst;
 
-	assert(argc == 4);
-	DIR *src_dir = opendir(argv[1]);
-	DIR *dst_dir = opendir(argv[3]);
-	if (src_dir == NULL){
-		printf("Error opening folder: %s\n", strerror(errno));
-		return errno;
+	if ((fd_src = open(src_path, O_RDWR, 0777)) == -1){
+		printf("Error opening file: %s : %s\n", src_path, strerror(errno));
+		return 0;
 	}
-	if (dst_dir == NULL){
-		if (mkdir(argv[3], 0777) != 0){ //ask??
-			printf("Error making folder: %s\n", strerror(errno));
-			return errno;
-		}
-	}
-	else if (closedir(dst_dir) != 0){ //ask liad??
-		printf("Error closing directory: %s\n", strerror(errno));
-		return errno;
+	if ((fd_dst = open(dst_path, O_RDWR | O_CREAT | O_TRUNC, 0777)) == -1){
+		printf("Error opening file: %s : %s\n", dst_path, strerror(errno));
+		close(fd_src);
+		return 0;
 	}
 
-	struct dirent *entry;
-	struct stat statbuf;
-	int key_file, src_file, dst_file;
-	char src_path[1000], dst_path[1000];
-	if ((key_file = open(argv[2], O_RDONLY)) == -1){
-		printf("Error opening key file: %s\n", strerror(errno));
-		return errno;
+	if ((file_size = lseek(fd_src, 0, SEEK_END)) == -1) clean_exit(NULL, NULL, fd_src, fd_dst, buf_size);
+	if (ftruncate(fd_dst, file_size) == -1){
+		printf("Error truncating file: %s : %s\n", dst_path, strerror(errno));
+		clean_exit(NULL, NULL, fd_src, fd_dst, buf_size);
+		return 0;
 	}
-	while ((entry = readdir(src_dir)) != NULL){
-		// get full path to src/dst files
-		sprintf(src_path, "%s/%s", argv[1], entry->d_name);
-		sprintf(dst_path, "%s/%s", argv[3], entry->d_name);
-		// call stat to get file metadata
-		if (stat(src_path, &statbuf) == -1){
-			printf("Error getting file stat: %s\n", strerror(errno));
-			return errno;
-		}
-		// skip directories
-		if ((statbuf.st_mode & S_IFMT) == S_IFDIR)
-		{
-			continue;
+	if (lseek(fd_src, 0, SEEK_SET) == -1) clean_exit(NULL, NULL, fd_src, fd_dst, buf_size);
+
+	while (offset < file_size){
+
+		src = mmap(NULL, buf_size, PROT_READ, MAP_SHARED, fd_src, offset);
+		dst = mmap(NULL, buf_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd_dst, offset);
+		if ((int)src == -1 || (int)dst == -1) clean_exit(src, dst, fd_src, fd_dst, buf_size);
+
+		for (i = 0; i < buf_size; i++){
+			if (src[i] == EOF){
+				dst[i] = src[i];
+				break;
+			}
+			else dst[i] = src[i];
 		}
 
-		// open both files, enc/dec and close files
-		if ((src_file = open(src_path, O_RDONLY)) == -1 || (dst_file = open(dst_path, O_CREAT | O_TRUNC | O_RDWR, 0777)) == -1){
-			printf("Error opening file: %s : %s\n", dst_path, strerror(errno));
-			return errno;
-		}
+		offset += buf_size;
 
-		if (enc_dec(src_file, key_file, dst_file) != 1){
-			printf("Error in encryption/decryption: %s\n", strerror(errno));
-			return errno;
-		}
-		// return to the begining of the key for the next file
-		lseek(key_file, 0, SEEK_SET);
+		if (munmap(src, buf_size) == -1 || munmap(dst, buf_size)) clean_exit(src, dst, fd_src, fd_dst, buf_size);
+	}
 
-		if (close(src_file) != 0 || close(dst_file) != 0){
-			printf("Error closing file: %s\n", strerror(errno));
-			return errno;
-		}
-	}
-	if (close(key_file) != 0 || closedir(src_dir) != 0){
-		printf("Error closing file or directory: %s\n", strerror(errno));
-		return errno;
-	}
+	clean_exit(NULL, NULL, fd_src, fd_dst, 0);
+
+
+	return 0;
 }
