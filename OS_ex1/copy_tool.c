@@ -6,7 +6,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
-#include <signal.h>
+#include <sys/mman.h>
 
 
 #define ARGS_ERROR "The program accepts just two command-line arguments\n"
@@ -15,7 +15,7 @@
 #define BUFF_SIZE 4096
 
 
-int main(int argc, char * argv){
+int main(int argc, char ** argv){
 	if (argc != 3) {
 		printf(ARGS_ERROR);
 		return -1;
@@ -41,13 +41,6 @@ int main(int argc, char * argv){
 		return -1;
 	}
 	src_size = st.st_size;
-	/*src_size = lseek(src_fd, 0, SEEK_END); //The offset is set to the size of the file
-	if (src_size == -1 || lseek(fd_src, 0, SEEK_SET) == -1){ //The offset is set to the start of the file
-		printf(FUNC_ERROR, "lseek", strerror(errno));
-		close(src_fd);
-		close(dst_fd);
-		return -1;
-	}*/
 	if (truncate(dst_path, src_size) == -1){
 		printf(FUNC_ERROR, "truncate", strerror(errno));
 		close(src_fd);
@@ -57,7 +50,7 @@ int main(int argc, char * argv){
 	
 	while (offset < src_size){
 		src_addr = mmap(NULL, BUFF_SIZE, PROT_READ, MAP_SHARED, src_fd, offset);
-		dst_addr = mmap(NULL, BUFF_SIZE, PROT_WRITE | PORT_READ, MAP_SHARED, dst_fd, offset);
+		dst_addr = mmap(NULL, BUFF_SIZE, PROT_WRITE | PROT_READ, MAP_SHARED, dst_fd, offset);
 		if (src_addr == MAP_FAILED | dst_addr == MAP_FAILED){
 			printf(FUNC_ERROR, "mmap", strerror(errno));
 			close(src_fd);
@@ -68,7 +61,7 @@ int main(int argc, char * argv){
 			dst_addr[i] = src_addr[i];
 			if (src_addr[i] == EOF) break;
 		}
-		if (munmap(src_addr, BUFF_SIZE) == MAP_FAILED || munmap(dst_addr, BUFF_SIZE) == MAP_FAILED){
+		if (munmap(src_addr, BUFF_SIZE) == -1 || munmap(dst_addr, BUFF_SIZE) == -1){
 			printf(FUNC_ERROR, "munmap", strerror(errno));
 			close(src_fd);
 			close(dst_fd);
